@@ -121,6 +121,12 @@
     margin-top: 16px;
   }
   button:active { transform: translateY(1px); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
   table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.88rem; }
   th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--border); }
   th { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -201,7 +207,10 @@
         <input type="number" id="winby" value="2" min="1" max="5">
       </div>
     </div>
-    <button id="calcBtn">Calculate best rotation</button>
+    <div class="btn-row">
+      <button id="calcBtn">Calculate best rotation</button>
+      <button id="resetBtn" class="btn-secondary" type="button">Reset data</button>
+    </div>
     <div class="error" id="errorBox"></div>
   </div>
 
@@ -239,11 +248,41 @@ const defaultRotations = [
   { ps: 54.6, so: 58.8 },
   { ps: 51.3, so: 57.5 }
 ];
+const STORAGE_KEY = 'vro-state';
 
-function buildRotationInputs() {
+function loadStoredState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveState() {
+  try {
+    const rotations = [];
+    for (let n = 1; n <= 6; n++) {
+      rotations.push({
+        ps: document.getElementById('ps-' + n).value,
+        so: document.getElementById('so-' + n).value
+      });
+    }
+    const state = {
+      rotations,
+      target: document.getElementById('target').value,
+      winby: document.getElementById('winby').value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    // localStorage unavailable (private browsing, etc.) — nothing to persist.
+  }
+}
+
+function buildRotationInputs(rotations) {
   const tbody = document.getElementById('rotationInputs');
   tbody.innerHTML = '';
-  defaultRotations.forEach((r, i) => {
+  rotations.forEach((r, i) => {
     const n = i + 1;
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -253,8 +292,28 @@ function buildRotationInputs() {
     `;
     tbody.appendChild(tr);
   });
+  tbody.querySelectorAll('input[type="number"]').forEach(el => el.addEventListener('input', saveState));
 }
-buildRotationInputs();
+
+const storedState = loadStoredState();
+buildRotationInputs(storedState ? storedState.rotations : defaultRotations);
+if (storedState) {
+  if (storedState.target != null) document.getElementById('target').value = storedState.target;
+  if (storedState.winby != null) document.getElementById('winby').value = storedState.winby;
+}
+document.getElementById('target').addEventListener('input', saveState);
+document.getElementById('winby').addEventListener('input', saveState);
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  for (let n = 1; n <= 6; n++) {
+    document.getElementById('ps-' + n).value = '';
+    document.getElementById('so-' + n).value = '';
+  }
+  saveState();
+  document.getElementById('errorBox').style.display = 'none';
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('ps-1').focus();
+});
 
 function parseData() {
   const rows = [];
