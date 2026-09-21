@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vro-cache-v1';
+const CACHE_NAME = 'vro-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -23,8 +23,27 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// HTML is fetched network-first so a deploy is visible on the very next
+// load while still online; other assets (icons, manifest) rarely change
+// so cache-first is fine and keeps the app usable offline.
 self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  const isHTML = req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html');
+
+  if (isHTML) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    caches.match(req).then((cached) => cached || fetch(req))
   );
 });
