@@ -95,14 +95,18 @@
     gap: 8px;
   }
   label { font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-  .input-table-wrap { overflow-x: auto; }
-  .input-table { width: 100%; border-collapse: collapse; }
-  .input-table th, .input-table td { padding: 6px 6px; }
-  .input-table th { text-align: left; color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
-  .input-table td.rot-label { font-weight: 600; font-size: 0.92rem; white-space: nowrap; }
-  .input-table td.pct-cell { position: relative; }
-  .input-table input[type="number"] { padding-right: 24px; }
-  .pct-cell .pct-sign { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem; pointer-events: none; }
+  .input-grid {
+    display: grid;
+    grid-template-columns: max-content 1fr 1fr;
+    column-gap: 10px;
+    row-gap: 6px;
+    align-items: center;
+  }
+  .input-grid .grid-head { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; padding-bottom: 2px; }
+  .input-grid .rot-label { font-weight: 600; font-size: 0.92rem; white-space: nowrap; }
+  .input-grid .pct-cell { position: relative; }
+  .input-grid input[type="number"] { padding-right: 24px; }
+  .pct-cell .pct-sign { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem; pointer-events: none; }
   .row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
   .field { flex: 1 1 130px; min-width: 110px; }
   input[type="number"] {
@@ -134,10 +138,6 @@
     color: var(--text-muted);
     border: 1px solid var(--border);
   }
-  table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.88rem; }
-  th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--border); }
-  th { color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
-  .preview-wrap { overflow-x: auto; }
   .error { color: var(--accent); font-size: 0.88rem; margin-top: 8px; display: none; }
   .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 720px) { .results-grid { grid-template-columns: 1fr; } }
@@ -197,12 +197,7 @@
   <div class="card">
     <h2>1. Your rotation data</h2>
     <div class="hint" style="margin-top:0; margin-bottom:10px;">Enter PS% (point score % while serving) and SO% (side-out % while receiving) for each rotation.</div>
-    <div class="input-table-wrap">
-      <table class="input-table">
-        <thead><tr><th>Rotation</th><th>PS% (serving)</th><th>SO% (receiving)</th></tr></thead>
-        <tbody id="rotationInputs"></tbody>
-      </table>
-    </div>
+    <div class="input-grid" id="rotationInputs"></div>
 
     <div class="row">
       <div class="field">
@@ -286,20 +281,45 @@ function saveState() {
   }
 }
 
+// Mobile keyboards' "Next" button advances focus in DOM order, not
+// tabindex order (unlike desktop Tab). So the visual layout (a row per
+// rotation) is built with CSS Grid placement, decoupled from the DOM
+// order in which elements are appended — which is what actually
+// controls "Next": all 6 PS% fields, then all 6 SO% fields.
 function buildRotationInputs(rotations) {
-  const tbody = document.getElementById('rotationInputs');
-  tbody.innerHTML = '';
+  const grid = document.getElementById('rotationInputs');
+  grid.innerHTML = '';
+
+  const addCell = (html, row, col) => {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const el = div.firstElementChild;
+    el.style.gridRow = row;
+    el.style.gridColumn = col;
+    grid.appendChild(el);
+    return el;
+  };
+
+  addCell('<div class="grid-head">Rotation</div>', 1, 1);
+  addCell('<div class="grid-head">PS% (serving)</div>', 1, 2);
+  addCell('<div class="grid-head">SO% (receiving)</div>', 1, 3);
+
   rotations.forEach((r, i) => {
     const n = i + 1;
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="rot-label">Rotation ${n}</td>
-      <td class="pct-cell"><input type="number" id="ps-${n}" value="${r.ps}" min="0" max="100" step="0.1" tabindex="${n}"><span class="pct-sign">%</span></td>
-      <td class="pct-cell"><input type="number" id="so-${n}" value="${r.so}" min="0" max="100" step="0.1" tabindex="${6 + n}"><span class="pct-sign">%</span></td>
-    `;
-    tbody.appendChild(tr);
+    addCell(`<div class="rot-label">Rotation ${n}</div>`, n + 1, 1);
   });
-  tbody.querySelectorAll('input[type="number"]').forEach(el => {
+
+  rotations.forEach((r, i) => {
+    const n = i + 1;
+    addCell(`<div class="pct-cell"><input type="number" id="ps-${n}" value="${r.ps}" min="0" max="100" step="0.1"><span class="pct-sign">%</span></div>`, n + 1, 2);
+  });
+
+  rotations.forEach((r, i) => {
+    const n = i + 1;
+    addCell(`<div class="pct-cell"><input type="number" id="so-${n}" value="${r.so}" min="0" max="100" step="0.1"><span class="pct-sign">%</span></div>`, n + 1, 3);
+  });
+
+  grid.querySelectorAll('input[type="number"]').forEach(el => {
     el.addEventListener('input', saveState);
     // Clear on focus so stepping to the next cell (via the keyboard's Next
     // button) lands on an empty field ready to type, instead of needing to
