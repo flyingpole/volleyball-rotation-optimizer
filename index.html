@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Volleyball Rotation Optimizer</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f6690">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rotation Optimizer">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
   :root {
     --bg: #f6f7fb;
@@ -448,6 +455,12 @@ function runAll() {
 
 document.getElementById('calcBtn').addEventListener('click', runAll);
 window.addEventListener('load', runAll);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
