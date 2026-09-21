@@ -88,19 +88,14 @@
     gap: 8px;
   }
   label { font-size: 0.82rem; color: var(--text-muted); display: block; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-  textarea {
-    width: 100%;
-    min-height: 150px;
-    font-family: var(--mono);
-    font-size: 0.92rem;
-    padding: 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text);
-    resize: vertical;
-    line-height: 1.5;
-  }
+  .input-table-wrap { overflow-x: auto; }
+  .input-table { width: 100%; border-collapse: collapse; }
+  .input-table th, .input-table td { padding: 6px 6px; }
+  .input-table th { text-align: left; color: var(--text-muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  .input-table td.rot-label { font-weight: 600; font-size: 0.92rem; white-space: nowrap; }
+  .input-table td.pct-cell { position: relative; }
+  .input-table input[type="number"] { padding-right: 24px; }
+  .pct-cell .pct-sign { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem; pointer-events: none; }
   .row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
   .field { flex: 1 1 130px; min-width: 110px; }
   input[type="number"] {
@@ -183,14 +178,18 @@
 <div class="wrap">
   <header>
     <h1>🏐 Volleyball Rotation Optimizer</h1>
-    <div class="sub">Paste your rotation stats, and this works out the exact win probability of full sets — including how a side-out in one rotation leads straight into serving the next — to find the best rotation to start in.</div>
+    <div class="sub">Enter your rotation stats, and this works out the exact win probability of full sets — including how a side-out in one rotation leads straight into serving the next — to find the best rotation to start in.</div>
   </header>
 
   <div class="card">
     <h2>1. Your rotation data</h2>
-    <label for="dataInput">Rotation &nbsp;&nbsp; PS% &nbsp;&nbsp; SO%</label>
-    <textarea id="dataInput" spellcheck="false"></textarea>
-    <div class="hint">One rotation per line, in rotation order (1→2→3→4→5→6→1…). Tab, comma, or space separated. Percentages can be 0.547 or 54.7%.</div>
+    <div class="hint" style="margin-top:0; margin-bottom:10px;">Enter PS% (point score % while serving) and SO% (side-out % while receiving) for each rotation.</div>
+    <div class="input-table-wrap">
+      <table class="input-table">
+        <thead><tr><th>Rotation</th><th>PS% (serving)</th><th>SO% (receiving)</th></tr></thead>
+        <tbody id="rotationInputs"></tbody>
+      </table>
+    </div>
 
     <div class="row">
       <div class="field">
@@ -204,13 +203,6 @@
     </div>
     <button id="calcBtn">Calculate best rotation</button>
     <div class="error" id="errorBox"></div>
-
-    <div class="preview-wrap">
-      <table id="previewTable" style="display:none; margin-top:16px;">
-        <thead><tr><th>#</th><th>Rotation</th><th>PS% (serving)</th><th>SO% (receiving)</th></tr></thead>
-        <tbody id="previewBody"></tbody>
-      </table>
-    </div>
   </div>
 
   <div id="resultsSection" style="display:none;">
@@ -239,41 +231,41 @@
 </div>
 
 <script>
-const defaultData = `Rotation 1\t0.547\t0.556
-Rotation 2\t0.556\t0.648
-Rotation 3\t0.575\t0.58
-Rotation 4\t0.521\t0.608
-Rotation 5\t0.546\t0.588
-Rotation 6\t0.513\t0.575`;
+const defaultRotations = [
+  { ps: 54.7, so: 55.6 },
+  { ps: 55.6, so: 64.8 },
+  { ps: 57.5, so: 58.0 },
+  { ps: 52.1, so: 60.8 },
+  { ps: 54.6, so: 58.8 },
+  { ps: 51.3, so: 57.5 }
+];
 
-document.getElementById('dataInput').value = defaultData;
-
-function parseData(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const rows = [];
-  const numRegex = /-?\d+(\.\d+)?%?/g;
-  lines.forEach((line, idx) => {
-    const nums = line.match(numRegex) || [];
-    if (nums.length < 2) return;
-    const psRaw = nums[nums.length - 2];
-    const soRaw = nums[nums.length - 1];
-    const toFrac = (s) => {
-      let v = parseFloat(s.replace('%', ''));
-      if (s.includes('%') || v > 1) v = v / 100;
-      return v;
-    };
-    const ps = toFrac(psRaw);
-    const so = toFrac(soRaw);
-    let label;
-    if (nums.length >= 3) {
-      label = 'Rotation ' + nums[0].replace('%', '');
-    } else {
-      const m = line.match(/^[^\d]*/);
-      label = (m && m[0].trim()) ? m[0].trim() : ('Rotation ' + (idx + 1));
-    }
-    if (isNaN(ps) || isNaN(so)) return;
-    rows.push({ label, ps, so });
+function buildRotationInputs() {
+  const tbody = document.getElementById('rotationInputs');
+  tbody.innerHTML = '';
+  defaultRotations.forEach((r, i) => {
+    const n = i + 1;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="rot-label">Rotation ${n}</td>
+      <td class="pct-cell"><input type="number" id="ps-${n}" value="${r.ps}" min="0" max="100" step="0.1"><span class="pct-sign">%</span></td>
+      <td class="pct-cell"><input type="number" id="so-${n}" value="${r.so}" min="0" max="100" step="0.1"><span class="pct-sign">%</span></td>
+    `;
+    tbody.appendChild(tr);
   });
+}
+buildRotationInputs();
+
+function parseData() {
+  const rows = [];
+  for (let n = 1; n <= 6; n++) {
+    const psEl = document.getElementById('ps-' + n);
+    const soEl = document.getElementById('so-' + n);
+    const ps = parseFloat(psEl.value) / 100;
+    const so = parseFloat(soEl.value) / 100;
+    if (isNaN(ps) || isNaN(so)) continue;
+    rows.push({ label: 'Rotation ' + n, ps, so });
+  }
   return rows;
 }
 
@@ -317,31 +309,21 @@ function evalState(us, opp, idx, serving, rotations, target, winBy, cap, memo) {
 function runAll() {
   const errorBox = document.getElementById('errorBox');
   errorBox.style.display = 'none';
-  const rows = parseData(document.getElementById('dataInput').value);
+  const rows = parseData();
 
   if (rows.length < 2) {
-    errorBox.textContent = 'Enter at least 2 rotations (rotation label, PS%, SO% per line).';
+    errorBox.textContent = 'Enter PS% and SO% for at least 2 rotations.';
     errorBox.style.display = 'block';
     document.getElementById('resultsSection').style.display = 'none';
-    document.getElementById('previewTable').style.display = 'none';
     return;
   }
   for (const r of rows) {
     if (r.ps < 0 || r.ps > 1 || r.so < 0 || r.so > 1) {
-      errorBox.textContent = 'PS% and SO% should be between 0 and 1 (or 0% and 100%). Check: ' + r.label;
+      errorBox.textContent = 'PS% and SO% should be between 0% and 100%. Check: ' + r.label;
       errorBox.style.display = 'block';
       return;
     }
   }
-
-  const previewBody = document.getElementById('previewBody');
-  previewBody.innerHTML = '';
-  rows.forEach((r, i) => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${i + 1}</td><td>${r.label}</td><td>${(r.ps * 100).toFixed(1)}%</td><td>${(r.so * 100).toFixed(1)}%</td>`;
-    previewBody.appendChild(tr);
-  });
-  document.getElementById('previewTable').style.display = '';
 
   const target = parseInt(document.getElementById('target').value, 10) || 25;
   const winBy = parseInt(document.getElementById('winby').value, 10) || 2;
