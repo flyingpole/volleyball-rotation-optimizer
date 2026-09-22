@@ -107,8 +107,6 @@
   .input-grid .pct-cell { position: relative; }
   .input-grid input[type="number"] { padding-right: 24px; }
   .pct-cell .pct-sign { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 0.85rem; pointer-events: none; }
-  .row { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; }
-  .field { flex: 1 1 130px; min-width: 110px; }
   input[type="number"] {
     width: 100%;
     padding: 9px 10px;
@@ -199,16 +197,6 @@
     <div class="hint" style="margin-top:0; margin-bottom:10px;">Enter PS% (point score % while serving) and SO% (side-out % while receiving) for each rotation.</div>
     <div class="input-grid" id="rotationInputs"></div>
 
-    <div class="row">
-      <div class="field">
-        <label for="target">Target score</label>
-        <input type="number" id="target" value="25" min="5" max="30">
-      </div>
-      <div class="field">
-        <label for="winby">Win by</label>
-        <input type="number" id="winby" value="2" min="1" max="5">
-      </div>
-    </div>
     <div class="btn-row">
       <button id="calcBtn">Calculate best rotation</button>
       <button id="resetBtn" class="btn-secondary" type="button">Reset data</button>
@@ -237,7 +225,7 @@
   <footer>
     Model: while serving, you keep serving on a win and switch to receiving <i>in the same rotation</i> on a loss.
     While receiving, a side-out win moves you into the <b>next</b> rotation to serve; a loss keeps you receiving in place.
-    Each option is ranked by its exact win probability for a set to the target score (win by the margin above) — computed by working out every possible score sequence and its true probability, not by random trials — so it naturally accounts for the chain reaction into whichever rotation follows.
+    Each option is ranked by its exact win probability for a set to 25, win by 2 — computed by working out every possible score sequence and its true probability, not by random trials — so it naturally accounts for the chain reaction into whichever rotation follows.
   </footer>
 </div>
 
@@ -270,11 +258,7 @@ function saveState() {
         so: document.getElementById('so-' + n).value
       });
     }
-    const state = {
-      rotations,
-      target: document.getElementById('target').value,
-      winby: document.getElementById('winby').value
-    };
+    const state = { rotations };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
     // localStorage unavailable (private browsing, etc.) — nothing to persist.
@@ -330,12 +314,6 @@ function buildRotationInputs(rotations) {
 
 const storedState = loadStoredState();
 buildRotationInputs(storedState ? storedState.rotations : defaultRotations);
-if (storedState) {
-  if (storedState.target != null) document.getElementById('target').value = storedState.target;
-  if (storedState.winby != null) document.getElementById('winby').value = storedState.winby;
-}
-document.getElementById('target').addEventListener('input', saveState);
-document.getElementById('winby').addEventListener('input', saveState);
 
 document.getElementById('resetBtn').addEventListener('click', () => {
   for (let n = 1; n <= 6; n++) {
@@ -417,8 +395,8 @@ function runAll() {
     }
   }
 
-  const target = parseInt(document.getElementById('target').value, 10) || 25;
-  const winBy = parseInt(document.getElementById('winby').value, 10) || 2;
+  const target = 25;
+  const winBy = 2;
   const cap = Math.max(target * 5, target + 60);
 
   // One shared memo: a given (score, score, rotation, serving) state means the
