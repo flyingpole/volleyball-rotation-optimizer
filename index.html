@@ -305,10 +305,10 @@ function buildRotationInputs(rotations) {
 
   grid.querySelectorAll('input[type="number"]').forEach(el => {
     el.addEventListener('input', saveState);
-    // Clear on focus so stepping to the next cell (via the keyboard's Next
-    // button) lands on an empty field ready to type, instead of needing to
-    // select-and-overwrite an existing value first.
-    el.addEventListener('focus', () => { el.value = ''; });
+    // Select all on focus so stepping to the next cell (via the keyboard's
+    // Next button) highlights the existing value — typing overwrites it
+    // immediately, but it isn't lost if you just tab through without typing.
+    el.addEventListener('focus', () => { el.select(); });
   });
 }
 
